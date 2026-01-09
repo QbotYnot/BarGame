@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Buxton Bar Game</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+
+
+<style>
+
+
+
+body {
+  background: url('bar-bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+  position: relative;
+}
+
+
+
+
+
+#header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 100px;
+  color: #FFFFFF; /* gold */
+  letter-spacing: 3px;
+  text-shadow:
+    0 0 5px #ffcc00,
+    0 0 15px rgba(255, 204, 0, 0.6);
+  margin-bottom: 20px;
+}
+
+#header p { font-size: 18px; }
+
+#game {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin: 20px auto;
+}
+.bar {
+  background: rgba(34, 34, 34, 0.85); /* semi-transparent so bar looks like it’s in the room */
+  padding: 20px;
+  border-radius: 12px;
+  width: 300px;
+  border: 3px solid #444;
+  z-index: 1; /* above the sign */
+}
+
+
+.bar {
+  background: #222;
+  padding: 20px;
+  border-radius: 12px;
+  width: 300px;
+  border: 3px solid #444;
+}
+.bar.active { border-color: gold; }
+.stools-row {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.stool {
+  width: 40px;
+  height: 40px;
+  background: #654321; /* wooden stool color */
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  opacity: 0.4;
+  transition: transform 0.2s, opacity 0.2s;
+  position: relative;
+}
+
+.stool.occupied {
+  opacity: 1;
+  transform: translateY(-5px);
+  background: #a0522d; /* darker wood */
+  animation: bounce 1s infinite alternate;
+}
+
+/* tiny bounce animation for occupied stools */
+@keyframes bounce {
+  0% { transform: translateY(-5px); }
+  100% { transform: translateY(-12px); }
+}
+
+/* optional: drinks floating above stools */
+.stool .drink {
+  position: absolute;
+  top: -12px;
+  font-size: 18px;
+}
+
+
+.neon-sign { font-size: 24px; color: #ff4da6; margin-bottom: 10px; opacity: 0.6; }
+.neon-sign.on { opacity: 1; text-shadow: 0 0 5px #ff4da6,0 0 10px #ff69b4; }
+
+#virginiaOverlay {
+  position: fixed; inset: 0;
+  background: black;
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+}
+#virginiaImage {  
+ width: 80vw;
+  height: 80vh;
+object-fit: cover;
+  opacity: 0;
+  transform: scale(0.5);
+  filter: brightness(0.3) contrast(2) drop-shadow(0 0 30px red); }
+
+@keyframes zoomInvert {
+  0% { transform: scale(0.5); opacity:0; filter:none; }
+  50% { transform: scale(1.2); opacity:1; filter: invert(100%); }
+  100% { transform: scale(1); opacity:1; filter:none; }
+}
+
+@keyframes zoomHorror {
+  0% { transform: scale(0.5) rotate(0deg); opacity: 0; filter: none; }
+  50% { transform: scale(1.5) rotate(5deg); opacity: 1; filter: invert(100%) contrast(200%); }
+  75% { transform: scale(1.4) rotate(-5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; filter: none; }
+}
+
+
+@keyframes shake {
+  0% { transform: translate(0,0); }
+  10% { transform: translate(-20px,5px) rotate(-10deg); }
+  20% { transform: translate(15px,-10px) rotate(10deg); }
+  30% { transform: translate(-15px,10px) rotate(-10deg); }
+  40% { transform: translate(10px,-5px) rotate(5deg); }
+  50% { transform: translate(-10px,5px) rotate(-5deg); }
+  60% { transform: translate(5px,-5px) rotate(2deg); }
+  70% { transform: translate(-5px,5px) rotate(-2deg); }
+  80% { transform: translate(3px,-3px) rotate(1deg); }
+  90% { transform: translate(-3px,3px) rotate(-1deg); }
+  100% { transform: translate(0,0) rotate(0deg); }
+}
+
+
+#victoryOverlay {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  background: linear-gradient(135deg, gold, #ff69b4);
+  display:none; align-items:center; justify-content:center; flex-direction:column;
+  z-index: 10000;
+}
+#victoryOverlay.show { display:flex; }
+#victoryOverlay h1 { font-size: 36px; color:white; text-shadow:0 0 10px #fff,0 0 20px #ff0; }
+
+#drawButton { padding:10px 20px; font-size:18px; margin:15px auto; display:block; cursor:pointer; }
+#log { margin-top:15px; font-size:16px; }
+
+#confettiCanvas { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10001; }
+
+
+
+
+</style>
+</head>
+<body>
+
+<img id="lighthouseSign" src="lighthouse-sign.png" alt="Lighthouse Sportsbar Sign">
+
+
+
+<div id="setupScreen">
+  <h2>Set up your game</h2>
+  <label>Number of Players: 
+    <select id="numPlayers">
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+    </select>
+  </label>
+  <div id="playerNames"></div>
+  <button id="startGame">Start Game</button>
+</div>
+
+
+<div id="header">
+  <h1>🍺 Buxton Bar Game</h1>
+  <p>Fill your bar with 7 stools before it's too late!</p>
+</div>
+
+<div id="game"></div>
+<div id="drawButtons"></div>
+
+<div id="log"></div>
+
+<!-- Virginia overlay -->
+<div id="virginiaOverlay">
+  <img id="virginiaImage" src="VA.jpg" alt="Virginia">
+</div>
+
+<!-- Victory overlay -->
+<div id="victoryOverlay">
+  <h1 id="victoryText"></h1>
+</div>
+
+<!-- Glass smash audio -->
+<audio id="glassSmash" src="glass-smash.mp3"></audio>
+<audio id="screamSound" src="scream.mp3"></audio>
+
+
+<!-- Confetti canvas -->
+<canvas id="confettiCanvas"></canvas>
+
+<script>
+const setupScreen = document.getElementById("setupScreen");
+const numPlayersSelect = document.getElementById("numPlayers");
+const playerNamesDiv = document.getElementById("playerNames");
+const startButton = document.getElementById("startGame");
+
+numPlayersSelect.addEventListener("change", () => {
+  const count = parseInt(numPlayersSelect.value);
+  playerNamesDiv.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const input = document.createElement("input");
+    input.placeholder = `Player ${i+1} Name`;
+    input.type = "text";
+    playerNamesDiv.appendChild(input);
+    playerNamesDiv.appendChild(document.createElement("br"));
+  }
+});
+
+// Initialize name fields
+numPlayersSelect.dispatchEvent(new Event("change"));
+
+startButton.addEventListener("click", () => {
+  const inputs = playerNamesDiv.querySelectorAll("input");
+  players.length = 0; // Clear existing players
+
+  inputs.forEach(input => {
+    let name = input.value.trim() || "Player";
+    players.push({ name, stools: 0, stoolEmojis: [] });
+  });
+
+  setupScreen.style.display = "none";
+  gameDiv.style.display = "flex";
+  createPlayerButtons();
+  render();
+});
+
+
+
+const MAX_STOOLS = 7;
+const VIRGINIA_CHANCE = 0.2;
+const players = [
+];
+
+let currentPlayer = 0;
+
+const gameDiv = document.getElementById("game");
+const logDiv = document.getElementById("log");
+const drawButtonsDiv = document.getElementById("drawButtons");
+
+// Create buttons for each player
+function createPlayerButtons() {
+  drawButtonsDiv.innerHTML = "";
+  players.forEach((player, index) => {
+    const btn = document.createElement("button");
+    btn.innerText = `Draw Card: ${player.name}`;
+    btn.className = "playerButton";
+    btn.disabled = index !== currentPlayer; // only current player can click
+    btn.addEventListener("click", () => {
+      drawCardForPlayer(index);
+    });
+    drawButtonsDiv.appendChild(btn);
+  });
+}
+
+// Call this whenever turns change
+function updateButtons() {
+  const buttons = drawButtonsDiv.querySelectorAll("button");
+  buttons.forEach((btn, index) => {
+    btn.disabled = index !== currentPlayer;
+  });
+}
+
+// mix drinks with customers
+const peopleEmojis = [
+  "👨‍🍻","👩‍🍹","🧑‍🍳","🧑‍🎤","👩‍🎨","🧑‍💻",
+  "🧍🍺","🧍🍷","🧍🍹","🧍🍸"
+];
+
+function render() {
+  gameDiv.innerHTML = "";
+  players.forEach((p,i)=>{
+    const bar = document.createElement("div");
+    bar.className = "bar" + (i===currentPlayer ? " active" : "");
+    let stoolsHTML = "";
+    for (let s = 0; s < MAX_STOOLS; s++) {
+      if (s < p.stools) {
+        // occupied stool with customer emoji
+        const emoji = p.stoolEmojis[s];
+        stoolsHTML += `<div class="stool occupied">${emoji}</div>`;
+      } else {
+        // empty stool
+        stoolsHTML += `<div class="stool"></div>`;
+      }
+    }
+    bar.innerHTML = `<div class="neon-sign ${i===currentPlayer?"on":""}">${p.name}</div>
+                     <div class="stools-row">${stoolsHTML}</div>`;
+    gameDiv.appendChild(bar);
+  });
+}
+
+
+
+function showVirginiaAnimation() {
+  const overlay = document.getElementById("virginiaOverlay");
+  const img = document.getElementById("virginiaImage");
+  const glass = document.getElementById("glassSmash");
+  const scream = document.getElementById("screamSound"); // <- correct ID
+
+  // Play sounds
+  glass.currentTime = 0;
+  glass.play();
+  scream.currentTime = 0;
+  scream.play();
+
+  // Overlay shows
+  overlay.style.display = "flex";
+
+  // Random scary effects
+  img.style.filter = "brightness(0.2) contrast(3) saturate(2) drop-shadow(0 0 50px red)";
+  
+  // Combine zoom + shake + jitter
+  img.style.animation = "zoomInvert 1s forwards, shake 0.5s 0s 3";
+
+  // Flash screen quickly
+  document.body.style.transition = "background-color 0.05s";
+  const flashInterval = setInterval(() => {
+    document.body.style.backgroundColor = document.body.style.backgroundColor === "red" ? "" : "red";
+  }, 80);
+
+  // Stop effects after a terrifying moment
+  setTimeout(() => {
+    overlay.style.display = "none";
+    img.style.animation = "none";
+    img.style.filter = "";
+    document.body.style.backgroundColor = "";
+    clearInterval(flashInterval);
+  }, 1500);
+}
+
+
+function drawCardForPlayer(playerIndex) {
+  if (players.length === 0) return;
+
+  const player = players[playerIndex];
+  const isVirginia = Math.random() < VIRGINIA_CHANCE;
+
+  if (isVirginia) {
+    player.stools = 0;
+    player.stoolEmojis = [];
+    logDiv.innerText = `${player.name} drew VIRGINIA! All stools cleared!`;
+    showVirginiaAnimation();
+  } else {
+    player.stools += 1;
+    const newEmoji = peopleEmojis[Math.floor(Math.random() * peopleEmojis.length)];
+    player.stoolEmojis.push(newEmoji);
+    logDiv.innerText = `${player.name} drew a regular customer.`;
+
+    if (player.stools >= MAX_STOOLS) {
+      const victoryOverlay = document.getElementById("victoryOverlay");
+      const victoryText = document.getElementById("victoryText");
+      victoryText.innerText = `YAY! ${player.name} made it through their shift without Big V!`;
+      victoryOverlay.classList.add("show");
+      drawButtonsDiv.querySelectorAll("button").forEach(b => b.disabled = true);
+      logDiv.innerText = "";
+      startConfetti();
+      return;
+    }
+  }
+
+  // Next player's turn
+  currentPlayer = (currentPlayer + 1) % players.length;
+  render();
+  updateButtons();
+}
+
+
+
+
+render();
+
+// ====== CONFETTI ======
+const confettiCanvas = document.getElementById("confettiCanvas");
+const ctx = confettiCanvas.getContext("2d");
+let confettiPieces=[];
+
+function resizeCanvas(){ confettiCanvas.width=window.innerWidth; confettiCanvas.height=window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function createConfetti(){
+  confettiPieces=[];
+  const colors=["#ff0","#ff69b4","#00ffff","#00ff00","#ffa500"];
+  for(let i=0;i<150;i++){
+    confettiPieces.push({x:Math.random()*confettiCanvas.width,
+                         y:Math.random()*confettiCanvas.height-confettiCanvas.height,
+                         r:Math.random()*6+4,
+                         d:Math.random()*10+2,
+                         color:colors[Math.floor(Math.random()*colors.length)],
+                         tilt:Math.random()*10-10});
+  }
+}
+
+function drawConfetti(){
+  ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  confettiPieces.forEach(p=>{
+    ctx.beginPath();
+    ctx.lineWidth=p.r/2;
+    ctx.strokeStyle=p.color;
+    ctx.moveTo(p.x+p.tilt,p.y);
+    ctx.lineTo(p.x+p.tilt,p.y+p.r);
+    ctx.stroke();
+  });
+  updateConfetti();
+}
+
+function updateConfetti(){
+  confettiPieces.forEach(p=>{
+    p.y += Math.cos(p.d)+1+p.r/2;
+    p.x += Math.sin(0.01)*2;
+    if(p.y>confettiCanvas.height){ p.y=-10; p.x=Math.random()*confettiCanvas.width; }
+  });
+}
+
+let confettiInterval;
+function startConfetti(){
+  createConfetti();
+  confettiInterval = setInterval(drawConfetti,20);
+  setTimeout(stopConfetti,5000);
+}
+
+function stopConfetti(){
+  clearInterval(confettiInterval);
+  ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+}
+</script>
+
+</body>
+</html>
